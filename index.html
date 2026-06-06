@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Sentinel"/>
+  <meta name="theme-color" content="#00d4ff"/>
+  <title>SENTINEL — Personal AI</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#040406;color:#ddd;font-family:'Courier New',monospace;height:100dvh;overflow:hidden}
+    #app{display:flex;flex-direction:column;height:100dvh}
+
+    /* scrollbar */
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-track{background:#040406}
+    ::-webkit-scrollbar-thumb{background:#00d4ff22;border-radius:2px}
+
+    /* animations */
+    @keyframes dotPulse{0%,100%{transform:scale(0.7);opacity:0.3}50%{transform:scale(1.2);opacity:1}}
+    @keyframes headerGlow{0%,100%{text-shadow:0 0 8px #00d4ff}50%{text-shadow:0 0 20px #00d4ff,0 0 40px #00d4ff}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* header */
+    #header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #00d4ff18;background:rgba(0,212,255,0.02);flex-shrink:0}
+    .logo-box{width:34px;height:34px;border:1.5px solid #00d4ff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(0,212,255,0.06)}
+    .logo-title{font-size:1em;font-weight:900;letter-spacing:0.18em;color:#00d4ff;animation:headerGlow 4s ease-in-out infinite}
+    .logo-sub{font-size:0.5em;color:#444;letter-spacing:0.14em;margin-top:2px}
+    .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;animation:dotPulse 2s ease-in-out infinite}
+    #panel-toggle{background:transparent;border:1px solid #1a1a2e;border-radius:4px;color:#555;padding:5px 9px;cursor:pointer;font-size:0.75em;font-family:inherit}
+    #panel-toggle.active{background:rgba(0,212,255,0.08);color:#00d4ff;border-color:#00d4ff33}
+
+    /* tabs */
+    #tabs{display:flex;border-bottom:1px solid #0d0d0d;flex-shrink:0;overflow-x:auto}
+    .tab-btn{flex:1;min-width:70px;padding:7px 4px;background:transparent;border:none;border-bottom:2px solid transparent;color:#444;cursor:pointer;font-size:0.6em;letter-spacing:0.07em;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all 0.15s}
+    .tab-btn.active{color:#00d4ff;border-bottom-color:#00d4ff44;background:rgba(0,212,255,0.04)}
+    .tab-icon{font-size:1.3em}
+
+    /* quick actions */
+    #quick-actions{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid #0d0d0d;flex-wrap:wrap;flex-shrink:0;overflow-x:auto}
+    .qa-btn{background:transparent;border:1px solid #151520;color:#555;padding:4px 9px;border-radius:3px;font-size:0.62em;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
+    .qa-btn:active{border-color:#00d4ff44;color:#00d4ff88}
+
+    /* main layout */
+    #main{flex:1;display:flex;overflow:hidden}
+    #chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    #messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+
+    /* messages */
+    .msg{animation:fadeIn 0.25s ease-out;display:flex}
+    .msg.user{justify-content:flex-end}
+    .msg.assistant{justify-content:flex-start}
+    .bubble{max-width:85%;padding:10px 13px;font-size:0.82em;line-height:1.75;border-radius:10px}
+    .bubble.user{border-radius:10px 10px 2px 10px}
+    .bubble.assistant{border-radius:10px 10px 10px 2px;background:rgba(255,255,255,0.025);border:1px solid #151520}
+    .msg-meta{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap}
+    .tag{font-size:0.58em;font-weight:800;letter-spacing:0.1em;padding:2px 5px;border-radius:3px;text-transform:uppercase}
+    .msg-time{font-size:0.55em;color:#2a2a3a;margin-left:auto}
+    .ticker-added{margin-top:6px;font-size:0.62em;color:#00ff8855}
+
+    /* typing */
+    #typing{display:none;padding:12px}
+    #typing .bubble{padding:12px 16px}
+    .typing-dots{display:flex;gap:5px;align-items:center}
+    .typing-dot{width:6px;height:6px;border-radius:50%;background:#00d4ff}
+    .typing-dot:nth-child(1){animation:dotPulse 1.2s ease-in-out 0s infinite}
+    .typing-dot:nth-child(2){animation:dotPulse 1.2s ease-in-out 0.2s infinite}
+    .typing-dot:nth-child(3){animation:dotPulse 1.2s ease-in-out 0.4s infinite}
+    .typing-label{font-size:0.55em;color:#333;letter-spacing:0.15em;margin-bottom:6px}
+
+    /* input */
+    #input-area{border-top:1px solid #00d4ff14;padding:10px 12px;background:rgba(0,212,255,0.015);flex-shrink:0}
+    #input-box{display:flex;gap:8px;align-items:flex-end;border:1px solid #151520;border-radius:7px;padding:8px 12px;background:#06060a;transition:border-color 0.2s}
+    #input-box:focus-within{border-color:#00d4ff33}
+    #msg-input{flex:1;background:transparent;border:none;color:#ddd;font-size:0.82em;line-height:1.6;resize:none;outline:none;font-family:'Courier New',monospace;max-height:90px;overflow:auto}
+    #msg-input::placeholder{color:#333}
+    #send-btn{background:#0d0d12;border:none;border-radius:5px;padding:7px 12px;color:#2a2a3a;font-size:0.68em;font-weight:900;letter-spacing:0.1em;cursor:not-allowed;font-family:inherit;transition:all 0.2s;white-space:nowrap;flex-shrink:0}
+    #send-btn.active{background:#00d4ff;color:#000;cursor:pointer}
+    .input-hint{font-size:0.52em;color:#222;margin-top:5px;text-align:center;letter-spacing:0.07em}
+
+    /* side panel */
+    #side-panel{width:220px;border-left:1px solid #0d0d12;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:all 0.2s}
+    #side-panel.hidden{display:none}
+    .panel-header{font-size:0.58em;color:#444;letter-spacing:0.16em;padding:10px 14px;border-bottom:1px solid #111}
+    .panel-body{flex:1;overflow-y:auto}
+
+    /* watchlist */
+    .watch-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #0d0d0d}
+    .watch-symbol{font-size:0.78em;color:#00ff88;font-weight:700;letter-spacing:0.08em}
+    .watch-time{font-size:0.56em;color:#444;margin-top:2px}
+    .remove-btn{background:none;border:none;color:#333;cursor:pointer;font-size:0.8em;padding:2px 6px;font-family:inherit}
+    .empty-state{padding:20px 14px;font-size:0.7em;color:#333;text-align:center;line-height:1.8}
+
+    /* memory */
+    #memory-input-row{display:flex;gap:6px;padding:10px 10px;border-bottom:1px solid #0d0d0d}
+    #memory-input{flex:1;background:#0a0a0a;border:1px solid #1a1a2e;border-radius:4px;color:#ccc;font-size:0.72em;padding:6px 9px;font-family:inherit;outline:none}
+    #memory-input::placeholder{color:#333}
+    #memory-add-btn{background:#00d4ff22;border:1px solid #00d4ff44;border-radius:4px;color:#00d4ff;font-size:0.72em;padding:6px 10px;cursor:pointer;font-family:inherit}
+    .memory-item{display:flex;gap:8px;padding:8px 10px;border-bottom:1px solid #0d0d0d;align-items:flex-start}
+    .memory-text{flex:1;font-size:0.72em;color:#ccc;line-height:1.5}
+    .memory-time{font-size:0.56em;color:#333;margin-top:3px}
+    #export-btn{width:100%;background:transparent;border:1px solid #1a1a2e;color:#555;padding:8px;font-size:0.62em;cursor:pointer;font-family:inherit;letter-spacing:0.1em;transition:all 0.2s;border-top:1px solid #111}
+    #export-btn:active{border-color:#00d4ff44;color:#00d4ff}
+
+    /* jugaad */
+    #jugaad-topic{width:100%;background:#0a0a0a;border:1px solid #1a1a2e;border-radius:4px;color:#ccc;font-size:0.72em;padding:7px 10px;font-family:inherit;outline:none;box-sizing:border-box}
+    #jugaad-topic::placeholder{color:#333}
+    .jugaad-tool{display:flex;align-items:center;gap:10px;padding:9px 12px;background:transparent;border:1px solid #1a1a2e;border-radius:6px;cursor:pointer;font-family:inherit;text-align:left;width:100%;transition:all 0.15s}
+    .jugaad-tool:active{border-color:#ffd70044;background:rgba(255,215,0,0.05)}
+    .jugaad-tool-label{font-size:0.73em;color:#ddd;font-weight:700}
+    .jugaad-tool-desc{font-size:0.58em;color:#555;margin-top:1px}
+
+    /* scanlines */
+    #scanlines{position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,0.012) 2px,rgba(0,212,255,0.012) 4px);pointer-events:none;z-index:100}
+
+    /* api key modal */
+    #api-modal{position:fixed;inset:0;background:rgba(4,4,6,0.95);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+    #api-modal.hidden{display:none}
+    .modal-box{background:#06060a;border:1px solid #00d4ff33;border-radius:12px;padding:24px;max-width:340px;width:100%}
+    .modal-title{color:#00d4ff;font-size:0.95em;font-weight:900;letter-spacing:0.15em;margin-bottom:6px;animation:headerGlow 4s ease-in-out infinite}
+    .modal-sub{font-size:0.65em;color:#555;letter-spacing:0.08em;margin-bottom:20px;line-height:1.7}
+    .modal-label{font-size:0.62em;color:#666;letter-spacing:0.1em;margin-bottom:6px}
+    #api-key-input{width:100%;background:#040406;border:1px solid #1a1a2e;border-radius:5px;color:#ddd;font-size:0.78em;padding:10px 12px;font-family:inherit;outline:none;margin-bottom:12px}
+    #api-key-input:focus{border-color:#00d4ff44}
+    #api-key-input::placeholder{color:#333}
+    #api-save-btn{width:100%;background:#00d4ff;border:none;border-radius:5px;color:#000;font-size:0.75em;font-weight:900;padding:11px;cursor:pointer;letter-spacing:0.12em;font-family:inherit}
+    .modal-note{font-size:0.56em;color:#444;margin-top:10px;text-align:center;line-height:1.7}
+    a{color:#00d4ff55;text-decoration:none}
+
+    code{background:#111;padding:2px 6px;border-radius:3px;font-family:'Courier New',monospace;color:#00d4ff;font-size:0.85em}
+    strong{color:#fff}
+    .ticker-highlight{color:#00ff88;font-weight:700;background:rgba(0,255,136,0.08);padding:1px 4px;border-radius:3px;font-size:0.9em}
+  </style>
+</head>
+<body>
+<div id="scanlines"></div>
+
+<!-- API KEY MODAL -->
+<div id="api-modal">
+  <div class="modal-box">
+    <div class="modal-title">⬡ SENTINEL</div>
+    <div class="modal-sub">Personal Agentic AI · MVP v1.0<br/>Anthropic API key chahiye activate karne ke liye.</div>
+    <div class="modal-label">ANTHROPIC API KEY</div>
+    <input id="api-key-input" type="password" placeholder="sk-ant-..."/>
+    <button id="api-save-btn">ACTIVATE SENTINEL</button>
+    <div class="modal-note">
+      Key sirf tere browser mein save hogi.<br/>
+      Get key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>
+      <span style="color:#ff6b3588">⚠ Key kisi ke saath share mat karna.</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- HEADER -->
+  <div id="header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="logo-box">⬡</div>
+      <div>
+        <div class="logo-title">SENTINEL</div>
+        <div class="logo-sub">PERSONAL AGENTIC AI · MVP</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="status-dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></span>
+        <span class="status-dot" style="background:#ff6b35;box-shadow:0 0 6px #ff6b35;animation-delay:0.4s"></span>
+        <span class="status-dot" style="background:#ffd700;box-shadow:0 0 6px #ffd700;animation-delay:0.8s"></span>
+        <span class="status-dot" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa;animation-delay:1.2s"></span>
+      </div>
+      <button id="panel-toggle" onclick="togglePanel()">⊞</button>
+    </div>
+  </div>
+
+  <!-- PANEL TABS (mobile bottom tabs) -->
+  <div id="tabs">
+    <button class="tab-btn active" onclick="switchTab('chat')" id="tab-chat">
+      <span class="tab-icon">💬</span>CHAT
+    </button>
+    <button class="tab-btn" onclick="switchTab('watchlist')" id="tab-watchlist">
+      <span class="tab-icon">📈</span>WATCHLIST
+    </button>
+    <button class="tab-btn" onclick="switchTab('memory')" id="tab-memory">
+      <span class="tab-icon">🧠</span>MEMORY
+    </button>
+    <button class="tab-btn" onclick="switchTab('jugaad')" id="tab-jugaad">
+      <span class="tab-icon">🎬</span>JUGAAD
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- CHAT PANEL -->
+    <div id="chat-area">
+      <div id="quick-actions">
+        <button class="qa-btn" onclick="quickSend('What should I watch in Indian markets today? Any sector or stock opportunities?')">📈 Market today</button>
+        <button class="qa-btn" onclick="quickSend('Give me a realistic passive income idea I can start with limited capital in India right now')">💡 Passive income</button>
+        <button class="qa-btn" onclick="quickSend('Give me 3 Jugaad Finance video ideas that will get high views in current Indian market conditions')">🎬 Video idea</button>
+        <button class="qa-btn" onclick="quickSend('Write a Python script to track my stock portfolio P&L from a CSV file')">💻 Quick code</button>
+      </div>
+
+      <div id="messages">
+        <!-- Welcome message injected by JS -->
+      </div>
+
+      <div id="typing">
+        <div class="bubble assistant">
+          <div class="typing-label">SENTINEL · PROCESSING</div>
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="input-area">
+        <div id="input-box">
+          <textarea id="msg-input" placeholder="Give Sentinel a task..." rows="1"
+            oninput="onInputChange(this)" onkeydown="handleKey(event)"></textarea>
+          <button id="send-btn" onclick="sendMessage()">EXECUTE ↵</button>
+        </div>
+        <div class="input-hint">TAP SEND · Major financial actions require your approval</div>
+      </div>
+    </div>
+
+    <!-- WATCHLIST PANEL -->
+    <div id="panel-watchlist" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="panel-header">AUTO-DETECTED WATCHLIST</div>
+      <div class="panel-body" id="watchlist-body">
+        <div class="empty-state">Sentinel will auto-add stocks<br/>as you discuss them in chat</div>
+      </div>
+    </div>
+
+    <!-- MEMORY PANEL -->
+    <div id="panel-memory" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="panel-header">TASK MEMORY</div>
+      <div id="memory-input-row">
+        <input id="memory-input" placeholder="Add note / task..." onkeydown="if(event.key==='Enter')addMemory()"/>
+        <button id="memory-add-btn" onclick="addMemory()">+</button>
+      </div>
+      <div class="panel-body" id="memory-body">
+        <div class="empty-state">No saved notes yet.<br/>Add tasks or key decisions here.</div>
+      </div>
+      <button id="export-btn" onclick="exportMemory()">↓ EXPORT MEMORY (JSON)</button>
+    </div>
+
+    <!-- JUGAAD PANEL -->
+    <div id="panel-jugaad" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="panel-header">JUGAAD FINANCE MODE</div>
+      <div class="panel-body" style="padding:12px;display:flex;flex-direction:column;gap:10px">
+        <div>
+          <div style="font-size:0.62em;color:#555;letter-spacing:0.08em;margin-bottom:6px">TOPIC / IDEA</div>
+          <input id="jugaad-topic" placeholder="e.g. SIP investing for beginners..."/>
+        </div>
+        <button class="jugaad-tool" onclick="jugaadFire('Write a full Jugaad Finance YouTube video script in Hinglish about: ')">
+          <span style="font-size:1.2em">📝</span>
+          <div><div class="jugaad-tool-label">Full Script</div><div class="jugaad-tool-desc">Complete Hinglish video script</div></div>
+        </button>
+        <button class="jugaad-tool" onclick="jugaadFire('Give me 5 high-CTR YouTube titles for a Jugaad Finance video about: ')">
+          <span style="font-size:1.2em">🎯</span>
+          <div><div class="jugaad-tool-label">Title Generator</div><div class="jugaad-tool-desc">5 high-CTR YouTube titles</div></div>
+        </button>
+        <button class="jugaad-tool" onclick="jugaadFire('Write an Instagram Reel script (30-60 sec) in Hinglish for Jugaad Finance about: ')">
+          <span style="font-size:1.2em">📱</span>
+          <div><div class="jugaad-tool-label">Instagram Reel</div><div class="jugaad-tool-desc">30-60 sec punchy reel script</div></div>
+        </button>
+        <button class="jugaad-tool" onclick="jugaadFire('Research and fact-check with verified sources (McKinsey/WEF/RBI/SEBI/AMFI) for a video about: ')">
+          <span style="font-size:1.2em">🔍</span>
+          <div><div class="jugaad-tool-label">Research & Fact-Check</div><div class="jugaad-tool-desc">Verified stats with sources</div></div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let apiKey = localStorage.getItem('sentinel_api_key') || '';
+let conversationHistory = [];
+let watchlist = JSON.parse(localStorage.getItem('sentinel_watchlist_v2') || '[]');
+let memory = JSON.parse(localStorage.getItem('sentinel_memory_v2') || '[]');
+let currentTab = 'chat';
+let isLoading = false;
+
+// ── SYSTEM PROMPT ──
+const SYSTEM_PROMPT = `You are SENTINEL — Abhisek's personal agentic AI. Elite operator. Three roles, one mission: grow Abhisek's passive income.
+
+## IDENTITY
+Name: SENTINEL | Owner: Abhisek | Mission: Build, handle, improve passive income — stocks, content, automation.
+
+## ROLE 1: STOCK BROKER (PRIMARY)
+- Deep knowledge: NSE/BSE, mutual funds, ETFs, SIPs, F&O basics, global macro.
+- Always give: BUY / HOLD / WATCH / AVOID verdict + reasoning + Risk Level (Low/Medium/High).
+- NEVER execute large financial moves without "APPROVED" from Abhisek.
+- Think like SEBI-registered advisor + hedge fund instincts.
+- When mentioning stocks, ALWAYS use $ prefix: $TATAMOTORS, $HDFCBANK, $RELIANCE, $NIFTY50 etc.
+
+## ROLE 2: PROGRAMMER
+- Full-stack: Python, JS, React, Excel/VBA, APIs, automation, web scraping, AI integrations.
+- Give working, production-ready code. No tutorials unless asked.
+
+## ROLE 3: PERSONAL ASSISTANT + JUGAAD FINANCE ENGINE
+- General: Tasks, summaries, planning, decisions, sounding board.
+- Jugaad Finance (YouTube/Instagram for Indian audience, Hinglish style):
+  - SCRIPTS: Hook → story → value → CTA structure
+  - TITLES: High-CTR, fear + opportunity framing, Indian context
+  - REELS: 30-60 sec, hook in first 3 words
+  - RESEARCH: Cite McKinsey/WEF/RBI/SEBI/AMFI with year
+
+## BEHAVIOR
+- Tone: Optimistic, realistic, direct. No fluff.
+- Format: Answer first. Reasoning second.
+- HARD RULES: No generic advice. No big financial moves without approval. No yes-man behaviour.
+- Stock tickers always as $SYMBOL format.
+
+Respond as SENTINEL. Sharp. Useful. Execute.`;
+
+// ── INIT ──
+window.onload = () => {
+  if (!apiKey) {
+    document.getElementById('api-modal').classList.remove('hidden');
+  } else {
+    document.getElementById('api-modal').classList.add('hidden');
+    init();
+  }
+  document.getElementById('api-save-btn').onclick = () => {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key.startsWith('sk-')) { alert('Invalid key format. Must start with sk-'); return; }
+    apiKey = key;
+    localStorage.setItem('sentinel_api_key', key);
+    document.getElementById('api-modal').classList.add('hidden');
+    init();
+  };
+};
+
+function init() {
+  addMessage('assistant', 'assistant', "SENTINEL online. All systems go. 🔒\n\n**Three modules active:** Stock Broker · Dev · Jugaad Finance\n\nWatchlist auto-tracks stocks from chat. Memory saves across sessions.\n\nKya karna hai aaj, Abhisek?");
+  renderWatchlist();
+  renderMemory();
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  currentTab = tab;
+  ['chat','watchlist','memory','jugaad'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+  });
+  document.getElementById('chat-area').style.display = tab === 'chat' ? 'flex' : 'none';
+  ['watchlist','memory','jugaad'].forEach(t => {
+    const el = document.getElementById(`panel-${t}`);
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
+  });
+}
+
+function togglePanel() {
+  // On mobile, toggle panel is just tab switching
+  const btn = document.getElementById('panel-toggle');
+  btn.classList.toggle('active');
+}
+
+// ── MESSAGING ──
+function ts() {
+  return new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+}
+
+function detectMode(text) {
+  const t = text.toLowerCase();
+  if (/stock|nse|bse|share|invest|buy|sell|portfolio|market|nifty|sensex|mutual fund|sip|etf|\$[a-z]/i.test(t)) return 'broker';
+  if (/code|script|function|python|javascript|react|bug|error|program|api|automat|def |import |const |class /i.test(t)) return 'dev';
+  if (/jugaad|youtube|reel|instagram|video|title|hook|hinglish|channel|content|subscriber/i.test(t)) return 'jugaad';
+  return 'assistant';
+}
+
+const MODE_COLORS = {broker:'#00ff88', dev:'#ff6b35', jugaad:'#ffd700', assistant:'#a78bfa'};
+const MODE_LABELS = {broker:'BROKER', dev:'DEV', jugaad:'JUGAAD', assistant:'ASSIST'};
+
+function formatText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\$([A-Z][A-Z0-9]{1,14})/g, '<span class="ticker-highlight">$$$1</span>')
+    .replace(/\n/g, '<br/>');
+}
+
+function extractTickers(text) {
+  const matches = text.match(/\$([A-Z][A-Z0-9]{1,14})/g) || [];
+  return [...new Set(matches.map(m => m.slice(1)))];
+}
+
+function addMessage(role, mode, content, tickers) {
+  const container = document.getElementById('messages');
+  const color = MODE_COLORS[mode] || '#a78bfa';
+  const label = MODE_LABELS[mode] || 'ASSIST';
+  const isUser = role === 'user';
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const tickerHTML = tickers && tickers.length
+    ? `<div class="ticker-added">↑ Watchlist mein add: ${tickers.map(t=>'$'+t).join(', ')}</div>` : '';
+
+  div.innerHTML = `
+    <div class="bubble ${role}" style="
+      background:${isUser ? color+'0a' : 'rgba(255,255,255,0.025)'};
+      border:1px solid ${isUser ? color+'22' : '#151520'};
+    ">
+      <div class="msg-meta">
+        <span class="tag" style="color:${color};background:${color}11;border:1px solid ${color}44">${isUser?'YOU':'SENTINEL'}</span>
+        <span class="tag" style="color:${color};background:${color}11;border:1px solid ${color}44">${label}</span>
+        <span class="msg-time">${ts()}</span>
+      </div>
+      <div>${formatText(content)}</div>
+      ${tickerHTML}
+    </div>`;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function onInputChange(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 90) + 'px';
+  const hasText = el.value.trim().length > 0;
+  const btn = document.getElementById('send-btn');
+  btn.classList.toggle('active', hasText && !isLoading);
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 600) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function quickSend(text) {
+  document.getElementById('msg-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+
+  const mode = detectMode(text);
+  addMessage('user', mode, text);
+  conversationHistory.push({role:'user', content:text});
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('send-btn').classList.remove('active');
+
+  isLoading = true;
+  document.getElementById('typing').style.display = 'block';
+  document.getElementById('messages').scrollTop = 999999;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      if (data.error.type === 'authentication_error') {
+        localStorage.removeItem('sentinel_api_key');
+        addMessage('assistant','assistant','❌ API key invalid hai. Page reload karo aur sahi key daalo.');
+      } else {
+        addMessage('assistant','assistant','⚠️ Error: ' + data.error.message);
+      }
+    } else {
+      const reply = data.content?.map(b=>b.text||'').join('') || 'No response.';
+      const replyMode = detectMode(reply);
+      const tickers = extractTickers(reply);
+      if (tickers.length) addToWatchlist(tickers);
+      conversationHistory.push({role:'assistant', content:reply});
+      addMessage('assistant', replyMode, reply, tickers);
+    }
+  } catch(err) {
+    addMessage('assistant','assistant','⚠️ Connection error. Internet check karo.');
+  } finally {
+    isLoading = false;
+    document.getElementById('typing').style.display = 'none';
+  }
+}
+
+// ── WATCHLIST ──
+function addToWatchlist(tickers) {
+  const existing = new Set(watchlist.map(w=>w.symbol));
+  tickers.filter(t=>!existing.has(t)).forEach(t => {
+    watchlist.unshift({symbol:t, addedAt:ts()});
+  });
+  localStorage.setItem('sentinel_watchlist_v2', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+function removeFromWatchlist(i) {
+  watchlist.splice(i,1);
+  localStorage.setItem('sentinel_watchlist_v2', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+function renderWatchlist() {
+  const body = document.getElementById('watchlist-body');
+  if (!watchlist.length) {
+    body.innerHTML = '<div class="empty-state">Sentinel will auto-add stocks<br/>as you discuss them in chat</div>';
+    return;
+  }
+  body.innerHTML = watchlist.map((item,i) => `
+    <div class="watch-item">
+      <div>
+        <div class="watch-symbol">$${item.symbol}</div>
+        <div class="watch-time">${item.addedAt}</div>
+      </div>
+      <button class="remove-btn" onclick="removeFromWatchlist(${i})">✕</button>
+    </div>`).join('');
+}
+
+// ── MEMORY ──
+function addMemory() {
+  const input = document.getElementById('memory-input');
+  const text = input.value.trim();
+  if (!text) return;
+  memory.unshift({text, savedAt:ts()});
+  localStorage.setItem('sentinel_memory_v2', JSON.stringify(memory));
+  input.value = '';
+  renderMemory();
+}
+
+function deleteMemory(i) {
+  memory.splice(i,1);
+  localStorage.setItem('sentinel_memory_v2', JSON.stringify(memory));
+  renderMemory();
+}
+
+function renderMemory() {
+  const body = document.getElementById('memory-body');
+  if (!memory.length) {
+    body.innerHTML = '<div class="empty-state">No saved notes yet.<br/>Add tasks or key decisions here.</div>';
+    return;
+  }
+  body.innerHTML = memory.map((item,i) => `
+    <div class="memory-item">
+      <div style="flex:1">
+        <div class="memory-text">${item.text}</div>
+        <div class="memory-time">${item.savedAt}</div>
+      </div>
+      <button class="remove-btn" onclick="deleteMemory(${i})">✕</button>
+    </div>`).join('');
+}
+
+function exportMemory() {
+  const data = {memory, watchlist, exportedAt: new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sentinel_memory.json';
+  a.click();
+}
+
+// ── JUGAAD ──
+function jugaadFire(prompt) {
+  const topic = document.getElementById('jugaad-topic').value.trim() || '[apna topic yahan likho]';
+  document.getElementById('msg-input').value = prompt + topic;
+  switchTab('chat');
+  sendMessage();
+}
+</script>
+</body>
+</html>
